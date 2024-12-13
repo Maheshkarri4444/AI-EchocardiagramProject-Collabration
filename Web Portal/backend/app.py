@@ -1303,7 +1303,7 @@ def get_video_mask():
 def get_video_ecg():
     try:
         # Path to your .avi file
-        video_path = './avi4.mp4'
+        video_path = './output/ecg.mp4'
         print(" video path status", os.path.exists(video_path))
         
         # Serve the file using send_file
