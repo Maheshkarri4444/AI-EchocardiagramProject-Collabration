@@ -1,0 +1,6 @@
+node_modules
+node_modules
+
+
+backend/models/'DeeplabV3 Resnet101 Best'.pt
+backend/models/'r2plus1d_18_32_2_pretrained'.pt
