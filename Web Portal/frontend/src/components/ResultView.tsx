@@ -1,4 +1,4 @@
-import  { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LoadingAnimation } from './LoadingAnimation';
 import { CardiacMetrics } from './CardiacMetrics';
 import { DiagnosisSection } from './DiagnosisSection';
@@ -25,75 +25,93 @@ export function ResultView({
   analysisResult 
 }: ResultViewProps) {
   const inputVideoRef = useRef<HTMLVideoElement>(null);
-  const outputVideoRef = useRef<HTMLVideoElement>(null);
-  const [processedVideo, setProcessedVideo] = useState<string | null>(null);
+  const outputVideoRef1 = useRef<HTMLVideoElement>(null);
+  const outputVideoRef2 = useRef<HTMLVideoElement>(null);
+  const [maskVideo, setMaskVideo] = useState<string | null>(null);
+  const [ecgVideo, setEcgVideo] = useState<string | null>(null);
 
   useEffect(() => {
-    // Clear the processed video when processing starts
     if (isProcessing) {
-      if (processedVideo) {
-        URL.revokeObjectURL(processedVideo);
-      }
-      setProcessedVideo(null);
+      if (maskVideo) URL.revokeObjectURL(maskVideo);
+      if (ecgVideo) URL.revokeObjectURL(ecgVideo);
+      setMaskVideo(null);
+      setEcgVideo(null);
       return;
     }
 
-    // Only fetch video when processing is complete and we have analysis results
     if (!isProcessing && analysisResult) {
-      const fetchProcessedVideo = async () => {
+      const fetchVideos = async () => {
         try {
-          const response = await fetch(`http://127.0.0.1:5000/get-video`,{
+          // Fetch mask video
+          const maskResponse = await fetch(`http://127.0.0.1:5000/get-video/mask`, {
             method: 'GET',
             headers: {
               'Content-Type': 'video/mp4',
             },
           });
-          console.log("response after fetching: ", response);
           
-          if (!response.ok) {
-            throw new Error('Failed to fetch processed video');
+          if (!maskResponse.ok) {
+            throw new Error('Failed to fetch mask video');
           }
 
-          const blob = await response.blob();
-          console.log("blob is: ",blob)
-          const videoUrl = URL.createObjectURL(blob);
-          console.log("video url is: ",videoUrl)
-          setProcessedVideo(videoUrl);
+          const maskBlob = await maskResponse.blob();
+          const maskUrl = URL.createObjectURL(maskBlob);
+          setMaskVideo(maskUrl);
+
+          // Fetch ECG video
+          const ecgResponse = await fetch(`http://127.0.0.1:5000/get-video/ecg`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'video/mp4',
+            },
+          });
+          
+          if (!ecgResponse.ok) {
+            throw new Error('Failed to fetch ECG video');
+          }
+
+          const ecgBlob = await ecgResponse.blob();
+          const ecgUrl = URL.createObjectURL(ecgBlob);
+          setEcgVideo(ecgUrl);
         } catch (error) {
-          console.error('Error fetching processed video:', error);
+          console.error('Error fetching videos:', error);
         }
       };
 
-      fetchProcessedVideo();
+      fetchVideos();
     }
 
-    // Cleanup function to revoke object URL
     return () => {
-      if (processedVideo) {
-        URL.revokeObjectURL(processedVideo);
-      }
+      if (maskVideo) URL.revokeObjectURL(maskVideo);
+      if (ecgVideo) URL.revokeObjectURL(ecgVideo);
     };
   }, [isProcessing, analysisResult]);
 
   useEffect(() => {
     const inputVid = inputVideoRef.current;
-    const outputVid = outputVideoRef.current;
+    const outputVid1 = outputVideoRef1.current;
+    const outputVid2 = outputVideoRef2.current;
 
-    if (!inputVid || !outputVid || !processedVideo) return;
+    if (!inputVid || !outputVid1 || !outputVid2 || !maskVideo || !ecgVideo) return;
 
     const handlePlay = () => {
       inputVid.play().catch(console.error);
-      outputVid.play().catch(console.error);
+      outputVid1.play().catch(console.error);
+      outputVid2.play().catch(console.error);
     };
 
     const handlePause = () => {
       inputVid.pause();
-      outputVid.pause();
+      outputVid1.pause();
+      outputVid2.pause();
     };
 
     const handleTimeUpdate = () => {
-      if (Math.abs(inputVid.currentTime - outputVid.currentTime) > 0.1) {
-        outputVid.currentTime = inputVid.currentTime;
+      if (Math.abs(inputVid.currentTime - outputVid1.currentTime) > 0.1) {
+        outputVid1.currentTime = inputVid.currentTime;
+      }
+      if (Math.abs(inputVid.currentTime - outputVid2.currentTime) > 0.1) {
+        outputVid2.currentTime = inputVid.currentTime;
       }
     };
 
@@ -106,15 +124,15 @@ export function ResultView({
       inputVid.removeEventListener('pause', handlePause);
       inputVid.removeEventListener('timeupdate', handleTimeUpdate);
     };
-  }, [inputVideo, processedVideo]);
+  }, [inputVideo, maskVideo, ecgVideo]);
 
   const endDiastolicVolume = 134.44;
   const endSystolicVolume = 73.28;
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-2 gap-8">
-        <div className="space-y-2">
+      <div className="flex justify-center gap-8">
+        <div className="w-1/2 space-y-2 ">
           <h3 className="font-medium text-gray-700">Input Video</h3>
           <div className="relative overflow-hidden bg-gray-100 rounded-lg aspect-video">
             <video
@@ -129,15 +147,42 @@ export function ResultView({
             />
           </div>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-8">
         <div className="space-y-2">
-          <h3 className="font-medium text-gray-700">Segmentation Result</h3>
+          <h3 className="font-medium text-gray-700">Segmented Video</h3>
           <div className="relative overflow-hidden bg-gray-100 rounded-lg aspect-video">
             {isProcessing ? (
               <LoadingAnimation />
-            ) : processedVideo ? (
+            ) : maskVideo ? (
               <video
-                ref={outputVideoRef}
-                src={processedVideo}
+                ref={outputVideoRef1}
+                src={maskVideo}
+                className="absolute inset-0 object-contain w-full h-full"
+                controls
+                autoPlay
+                loop
+                muted
+                playsInline
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                Click "Process Video" to start
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="font-medium text-gray-700">ECG Video</h3>
+          <div className="relative overflow-hidden bg-gray-100 rounded-lg aspect-video">
+            {isProcessing ? (
+              <LoadingAnimation />
+            ) : ecgVideo ? (
+              <video
+                ref={outputVideoRef2}
+                src={ecgVideo}
                 className="absolute inset-0 object-contain w-full h-full"
                 controls
                 autoPlay
@@ -156,11 +201,13 @@ export function ResultView({
       
       {!isProcessing && analysisResult && (
         <>
-          <CardiacMetrics 
-            ejectionFraction={analysisResult.ejectionFraction}
-            endDiastolicVolume={endDiastolicVolume}
-            endSystolicVolume={endSystolicVolume}
-          />
+          <div className="w-1/3">
+            <CardiacMetrics 
+              ejectionFraction={analysisResult.ejectionFraction}
+              endDiastolicVolume={endDiastolicVolume}
+              endSystolicVolume={endSystolicVolume}
+            />
+          </div>
           <DiagnosisSection 
             ejectionFraction={analysisResult.ejectionFraction}
             problem={analysisResult.problem}
