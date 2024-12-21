@@ -1239,8 +1239,8 @@ def retain_latest_video(folder_path):
         if file != most_recent_file:
             os.remove(os.path.join(folder_path, file))
 
-
-from flask import Flask, jsonify, request
+from moviepy import VideoFileClip
+from flask import Flask, jsonify, request,send_file
 import os
 from flask_cors import CORS
 
@@ -1276,6 +1276,24 @@ def video_output():
         print("Model started")
         res = final_result(seg_model, ef_model, INPUT_FOLDER, OUTPUT_FOLDER)
         print("Model ended")
+
+        mask_video_path = os.path.join(OUTPUT_FOLDER, "mask.mp4")
+        mask_gif_path = os.path.join(OUTPUT_FOLDER, "mask.gif")
+        if os.path.exists(mask_video_path):
+            print("Converting mask.mp4 to mask.gif...")
+            video_clip = VideoFileClip(mask_video_path)
+            video_clip.write_gif(mask_gif_path)
+            video_clip.close()
+            print("mask.gif created successfully.")
+
+        mask_video_path = os.path.join(OUTPUT_FOLDER, "ecg.mp4")
+        mask_gif_path = os.path.join(OUTPUT_FOLDER, "ecg.gif")
+        if os.path.exists(mask_video_path):
+            print("Converting ecg.mp4 to ecg.gif...")
+            video_clip = VideoFileClip(mask_video_path)
+            video_clip.write_gif(mask_gif_path)
+            video_clip.close()
+            print("ecg.gif created successfully.")
     except Exception as e:
         return jsonify({"error": f"Processing failed: {str(e)}"}), 500
     print(res)
@@ -1287,14 +1305,14 @@ def video_output():
 def get_video_mask():
     try:
         # Path to your .avi file
-        video_path = './output/mask.mp4'
+        video_path = './output/mask.gif'
         print(" video path status", os.path.exists(video_path))
         
         # Serve the file using send_file
         return send_file(
             video_path,
             as_attachment=False,  # Set to False to display in browser
-            mimetype='video/mp4',  # MIME type for .avi files
+            mimetype='image/gif'   # MIME type for .avi files
         )
     except Exception as e:
         return str(e), 500
@@ -1303,14 +1321,14 @@ def get_video_mask():
 def get_video_ecg():
     try:
         # Path to your .avi file
-        video_path = './output/ecg.mp4'
+        video_path = './output/ecg.gif'
         print(" video path status", os.path.exists(video_path))
         
         # Serve the file using send_file
         return send_file(
             video_path,
             as_attachment=False,  # Set to False to display in browser
-            mimetype='video/mp4'  # MIME type for .avi files
+            mimetype='image/gif'    # MIME type for .avi files
         )
     except Exception as e:
         return str(e), 500
